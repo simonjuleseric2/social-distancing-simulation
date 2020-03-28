@@ -6,55 +6,50 @@ import math
 import random
 
 
-def Move(x_limit,y_limit, list_movers, df):
+def Move_around(x_limit,y_limit, list_movers, df):
+
     for i in list_movers:
         if (df.loc[i,'infected']==2) or (df.loc[i,'infected']==4) : 
             list_movers.remove(i)
             
-        df.loc[i,'X'], df.loc[i,'Y'] = (df.loc[i,'X']+random.uniform(1,x_limit/3))%x_limit, (df.loc[i,'Y']+random.uniform(1,y_limit/3))%y_limit
+        df.loc[i,'X'], df.loc[i,'Y'] = (df.loc[i,'X']+random.uniform(1,x_limit/4))%x_limit, (df.loc[i,'Y']+random.uniform(1,y_limit/4))%y_limit
         
     return df
         #df.loc[i,'X'], df.loc[i,'Y']=np.random.uniform(0, s, size=(1, 2))
 
-def check(i,j, df, patient_previous, distance_limit):
-    try:
-        Dist = math.sqrt((df.loc[i,'X']-df.loc[j,'X'])**2+(df.loc[i,'Y']-df.loc[j,'Y'])**2)
-        flag = ((patient_previous[i]==1) ^ (patient_previous[j]==1)) and Dist<distance_limit
-    except:
-        print(type(df))
-        print(df)
-    
-    return flag
-    
-def interact(Day, df, patient_previous, distance_limit):
+def get_range(x1, y1, x2, y2):
+    Dist = math.sqrt((x1-x2)**2+(y1-y2)**2)
+    return Dist
 
-    for i in range(len(df)):
-        for j in range(i):
-            #print('xxx')
-            #print(type(df))
-            if check(i,j, df, patient_previous, distance_limit):
-                if (df.loc[i,'infected']==0) :
-                
-                    df=infect(i, df, Day)
-                    
-                else:
-                
-                    df=infect(j, df, Day)
+def interaction(Day, df, patient_previous, distance_limit, R_I):
+    succeptibles=df.loc[df['infected']==0]
+    infected=df.loc[df['infected']==1]
+    for i in succeptibles.index:
+        x1, y1=succeptibles.loc[i,'X'], succeptibles.loc[i,'Y']
+        for j in infected.index:
+            x2, y2=infected.loc[j,'X'], infected.loc[j,'Y']
+            distance_xy=get_range(x1, y1, x2, y2)
+            if distance_xy<distance_limit:
+                df, status=infect(i, df, Day, R_I)
+                if status==1:
+                    break # Avoid more unnecessary calculation if target already infected
+                         
     return df
                     
-                    
-def infect(Person, df, Day):
 
-    if random.random()>0.25 and Day>3 : 
-        return df
-    if df.loc[Person,'infected']==0:
-        df.loc[Person,'infected'], df.loc[Person,'Day'] = 1, Day                    
-    return df
+                    
+def infect(Person, df, Day, R_I):
+    if random.random()<R_I and Day>3 and df.loc[Person,'infected']==0:
+        status=1
+        df.loc[Person,'infected'] = status
+        df.loc[Person,'Day']=Day
+    else:
+        status=0
+            
+    return df, status
+
 
 def kill(df):
-    
-    #global df
-    
     #samplesize = math.floor(len(df[df['Covid-19']==1])*.005+len(df[df['Covid-19']==2])*.005)
     samplesize = math.floor(len(df[df['infected']==1])*.01)
     if samplesize>len(df[df['infected']==1]): 
@@ -63,7 +58,6 @@ def kill(df):
     return df
 
 def resolve(df, Day):
-    #global df, Day
     df.loc[(df['Day']<Day-10) & (df['infected']==1) ,'infected'] = 3
     #df.loc[(df['Day']<Day-21) & (df['Covid-19']==2) ,'Covid-19'] = 3
     return df
@@ -71,7 +65,6 @@ def resolve(df, Day):
 
 
 def Count(Day, df, Stat):
-    #global df, Stat
     
     List = list(df['infected'])
     
@@ -100,7 +93,7 @@ df2['X'], df2['Y']=coord[:, 0], coord[:, 1]
 
 samplesize1 = math.floor(population*0.7)
 list_movers1 = df1.sample(n = samplesize1).index.values.tolist() #deffine index of people who are moving around
-samplesize2 = math.floor(population*0.03)
+samplesize2 = math.floor(population*0.10)
 list_movers2 = df2.sample(n = samplesize2).index.values.tolist() #deffine index of people who are moving around
 
 Stat1 = pd.DataFrame(columns='Healthy,infected,Cured,Dead'.split(','))
@@ -109,7 +102,7 @@ Stat2 = pd.DataFrame(columns='Healthy,infected,Cured,Dead'.split(','))
     
 t=60
 Day=0
-
+R_I=0.4 #Infection Rate
 
 #Patient 0:
 p0=random.randrange(population)
@@ -121,6 +114,7 @@ Stat2=Count(Day, df2, Stat2)
 patient_previous1 = list(df1['infected'])
 patient_previous2 = list(df2['infected'])
 ims = []
+
 for i in range(0, t):
     
     Day +=1
@@ -130,12 +124,12 @@ for i in range(0, t):
     df2=kill(df2)
     df2=resolve(df2, Day)
     
-    df1=Move(x_limit, y_limit, list_movers1, df1)
-    df2=Move(x_limit, y_limit, list_movers2, df2)
+    df1=Move_around(x_limit, y_limit, list_movers1, df1)
+    df2=Move_around(x_limit, y_limit, list_movers2, df2)
     
     
-    df1=interact(Day, df1, patient_previous1, distance_limit)
-    df2=interact(Day, df2, patient_previous2, distance_limit)
+    df1=interaction(Day, df1, patient_previous1, distance_limit, R_I)
+    df2=interaction(Day, df2, patient_previous2, distance_limit, R_I)
     
     Stat1=Count(Day, df1, Stat1)
     patient_previous1 = list(df1['infected'])
@@ -176,6 +170,8 @@ for i in range(0, t):
     plt.plot(Stat1.index, Stat1['infected'], 'r')
     plt.plot(Stat1.index, Stat1['Dead'], 'k')
     plt.plot(Stat1.index, Stat1['Cured'], 'g')
+    plt.xlabel('Days')
+    plt.ylabel('Cases')
     
     plt.legend(['Susceptible', 'Infectious', 'Dead', 'Recovered'])
     
@@ -184,6 +180,8 @@ for i in range(0, t):
     plt.plot(Stat2.index, Stat2['infected'], 'r')
     plt.plot(Stat2.index, Stat2['Dead'], 'k')
     plt.plot(Stat2.index, Stat2['Cured'], 'g')
+    plt.xlabel('Days')
+    plt.ylabel('Cases')
     
     plt.legend(['Susceptible', 'Infectious', 'Dead', 'Recovered'])
     
