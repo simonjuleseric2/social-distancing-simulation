@@ -45,7 +45,6 @@ def interact(Day, df, patient_previous, distance_limit):
                     
 def infect(Person, df, Day):
 
-    #global df,Day
     if random.random()>0.25 and Day>3 : 
         return df
     if df.loc[Person,'infected']==0:
@@ -99,16 +98,16 @@ df1['X'], df1['Y']=coord[:, 0], coord[:, 1]
 df2['infected'] = np.zeros((population), dtype=int)
 df2['X'], df2['Y']=coord[:, 0], coord[:, 1]
 
-samplesize1 = math.floor(population*0.8)
+samplesize1 = math.floor(population*0.7)
 list_movers1 = df1.sample(n = samplesize1).index.values.tolist() #deffine index of people who are moving around
-samplesize2 = math.floor(population*0.1)
+samplesize2 = math.floor(population*0.03)
 list_movers2 = df2.sample(n = samplesize2).index.values.tolist() #deffine index of people who are moving around
 
 Stat1 = pd.DataFrame(columns='Healthy,infected,Cured,Dead'.split(','))
 Stat2 = pd.DataFrame(columns='Healthy,infected,Cured,Dead'.split(','))
 
     
-t=40
+t=60
 Day=0
 
 
@@ -160,13 +159,17 @@ for i in range(0, t):
     plt.scatter(healthy_loc1['X'], healthy_loc1['Y'], 2, 'b')
     plt.scatter(sick_loc1['X'], sick_loc1['Y'], 2, 'r')
     plt.scatter(Cured_loc1['X'], Cured_loc1['Y'], 2, 'g')
+    plt.xticks([])
+    plt.yticks([])
     plt.title('Standard')
     
     plt.subplot(222)
     plt.scatter(healthy_loc2['X'], healthy_loc2['Y'], 2, 'b')
     plt.scatter(sick_loc2['X'], sick_loc2['Y'], 2, 'r')
     plt.scatter(Cured_loc2['X'], Cured_loc2['Y'], 2, 'g')
-    plt.title('Social Distancing')
+    plt.xticks([])
+    plt.yticks([])
+    plt.title('Movement restriction')
     
     plt.subplot(223)
     plt.plot(Stat1.index, Stat1['Healthy'], 'b')
@@ -193,10 +196,11 @@ for i in range(0, t):
     
     ims.append(data)
     plt.clf()
+    plt.cla()
 
-from moviepy.editor import ImageSequenceClip
+from moviepy.editor import ImageSequenceClip #Somehow doesn't work if put at the top, possible conflict with matplotlib
 
-clip = ImageSequenceClip(ims, fps=5)
-#clip.write_gif('simulation.gif', fps=20)
-clip.write_videofile('simmulation2.mp4', fps=5) 
+clip = ImageSequenceClip(ims, fps=3)
+clip.write_gif('simulation.gif', fps=3)
+clip.write_videofile('simulation.mp4', fps=3) 
    
